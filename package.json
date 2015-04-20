@@ -1,0 +1,20 @@
+{
+  "name": "css-element-queries",
+  "version": "0.0.2",
+  "main": "ElementQueries.min.js",
+  "description": "Element Queries is a polyfill adding support for element based media-queries to all new browsers (incl. IE7+).",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/marcj/css-element-queries"
+  },
+  "devDependencies": {
+    "requirejs": "~2.1.15",
+    "grunt": "~0.4.1",
+    "grunt-bumpup": "~0.2.0",
+    "grunt-contrib-requirejs": "~0.4.4",
+    "grunt-contrib-uglify": ">= 0",
+    "grunt-tagrelease": "~0.2.0",
+    "amdclean": "~1.5.0",
+    "grunt-umd": "~2.2.1"
+  }
+}

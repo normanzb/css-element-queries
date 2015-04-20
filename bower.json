@@ -13,7 +13,8 @@
     "package.json",
     "*.html"
   ],
-  "dependencies": {
+  "dependencies": {},
+  "devDependencies": {
+    "resize-sensor": "https://github.com/normanzb/resize-sensor.git#0.0.3"
   }
 }
-

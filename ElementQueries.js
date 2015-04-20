@@ -1,20 +1,167 @@
+(function (root, factory) {
+  if (typeof define === 'function' && define.amd) {
+    // AMD. Register as an anonymous module.
+    define([], function () {
+      return (root.returnExportsGlobal = factory());
+    });
+  } else if (typeof exports === 'object') {
+    // Node. Does not work with strict CommonJS, but
+    // only CommonJS-like enviroments that support module.exports,
+    // like Node.
+    module.exports = factory();
+  } else {
+    root['ElementQueries'] = factory();
+  }
+}(this, function () {
+
 /**
  * Copyright Marc J. Schmidt. See the LICENSE file at the top-level
  * directory of this distribution and at
  * https://github.com/marcj/css-element-queries/blob/master/LICENSE.
  */
-;
-define(['../bower_components/resize-sensor/src/ResizeSensor'], function(ResizeSensor) {
+var bowerComponentsResizeSensorSrcResizeSensor = function () {
+    /**
+     *
+     * @constructor
+     */
+    function EventQueue() {
+        this.q = [];
+        this.add = function (ev) {
+            this.q.push(ev);
+        };
+        var i, j;
+        this.call = function () {
+            for (i = 0, j = this.q.length; i < j; i++) {
+                this.q[i].call();
+            }
+        };
+    }
+    /**
+     * @param {HTMLElement} element
+     * @param {String}      prop
+     * @returns {String|Number}
+     */
+    function getComputedStyle(element, prop) {
+        if (element.currentStyle) {
+            return element.currentStyle[prop];
+        } else if (window.getComputedStyle) {
+            return window.getComputedStyle(element, null).getPropertyValue(prop);
+        } else {
+            return element.style[prop];
+        }
+    }
+    /**
+     *
+     * @param {HTMLElement} element
+     * @param {Function}    resized
+     */
+    function attachResizeEvent(element, resized) {
+        if (!element.resizedAttached) {
+            element.resizedAttached = new EventQueue();
+            element.resizedAttached.add(resized);
+        } else if (element.resizedAttached) {
+            element.resizedAttached.add(resized);
+            return;
+        }
+        element.resizeSensor = document.createElement('div');
+        element.resizeSensor.className = 'resize-sensor';
+        var style = 'position: absolute; left: 0; top: 0; right: 0; bottom: 0; overflow: scroll; z-index: -1; visibility: hidden;';
+        var styleChild = 'position: absolute; left: 0; top: 0;';
+        element.resizeSensor.style.cssText = style;
+        element.resizeSensor.innerHTML = '<div class="resize-sensor-expand" style="' + style + '">' + '<div style="' + styleChild + '"></div>' + '</div>' + '<div class="resize-sensor-shrink" style="' + style + '">' + '<div style="' + styleChild + ' width: 200%; height: 200%"></div>' + '</div>';
+        element.appendChild(element.resizeSensor);
+        if (!{
+                fixed: 1,
+                absolute: 1
+            }[getComputedStyle(element, 'position')]) {
+            element.style.position = 'relative';
+        }
+        var expand = element.resizeSensor.childNodes[0];
+        var expandChild = expand.childNodes[0];
+        var shrink = element.resizeSensor.childNodes[1];
+        var shrinkChild = shrink.childNodes[0];
+        var lastWidth, lastHeight;
+        var reset = function () {
+            expandChild.style.width = expand.offsetWidth + 10 + 'px';
+            expandChild.style.height = expand.offsetHeight + 10 + 'px';
+            expand.scrollLeft = expand.scrollWidth;
+            expand.scrollTop = expand.scrollHeight;
+            shrink.scrollLeft = shrink.scrollWidth;
+            shrink.scrollTop = shrink.scrollHeight;
+            lastWidth = element.offsetWidth;
+            lastHeight = element.offsetHeight;
+        };
+        reset();
+        var changed = function () {
+            if (element.resizedAttached) {
+                element.resizedAttached.call();
+            }
+        };
+        var addEvent = function (el, name, cb) {
+            if (el.attachEvent) {
+                el.attachEvent('on' + name, cb);
+            } else {
+                el.addEventListener(name, cb);
+            }
+        };
+        addEvent(expand, 'scroll', function () {
+            if (element.offsetWidth > lastWidth || element.offsetHeight > lastHeight) {
+                changed();
+            }
+            reset();
+        });
+        addEvent(shrink, 'scroll', function () {
+            if (element.offsetWidth < lastWidth || element.offsetHeight < lastHeight) {
+                changed();
+            }
+            reset();
+        });
+    }
+    /**
+     * Class for dimension change detection.
+     *
+     * @param {Element|Element[]|Elements|jQuery} element
+     * @param {Function} callback
+     *
+     * @constructor
+     */
+    function ResizeSensor(element, callback) {
+        this._element = element;
+        if ('[object Array]' === Object.prototype.toString.call(element) || 'undefined' !== typeof jQuery && element instanceof jQuery || 'undefined' !== typeof Elements && element instanceof Elements) {
+            var i = 0, j = element.length;
+            for (; i < j; i++) {
+                attachResizeEvent(element[i], callback);
+            }
+        } else {
+            attachResizeEvent(element, callback);
+        }
+    }
+    ResizeSensor.prototype.detach = function () {
+        return ResizeSensor.detach(this._element);
+    };
+    ResizeSensor.detach = function (element) {
+        if (element.resizeSensor) {
+            element.removeChild(element.resizeSensor);
+            delete element.resizeSensor;
+            delete element.resizedAttached;
+        }
+    };
+    return ResizeSensor;
+}();
+/**
+ * Copyright Marc J. Schmidt. See the LICENSE file at the top-level
+ * directory of this distribution and at
+ * https://github.com/marcj/css-element-queries/blob/master/LICENSE.
+ */
+var ElementQueries = function (ResizeSensor) {
     /**
      *
      * @type {Function}
      * @constructor
      */
-    var ElementQueries = this.ElementQueries = function() {
-
+    var ElementQueries = this.ElementQueries = function () {
         this.withTracking = false;
         var elements = [];
-
         /**
          *
          * @param element
@@ -27,7 +174,6 @@ define(['../bower_components/resize-sensor/src/ResizeSensor'], function(ResizeSe
             var fontSize = getComputedStyle(element, 'fontSize');
             return parseFloat(fontSize) || 16;
         }
-
         /**
          *
          * @copyright https://github.com/Mr0grog/element-query/blob/master/LICENSE
@@ -40,32 +186,29 @@ define(['../bower_components/resize-sensor/src/ResizeSensor'], function(ResizeSe
             var units = value.replace(/[0-9]*/, '');
             value = parseFloat(value);
             switch (units) {
-                case "px":
-                    return value;
-                case "em":
-                    return value * getEmSize(element);
-                case "rem":
-                    return value * getEmSize();
-                // Viewport units!
-                // According to http://quirksmode.org/mobile/tableViewport.html
-                // documentElement.clientWidth/Height gets us the most reliable info
-                case "vw":
-                    return value * document.documentElement.clientWidth / 100;
-                case "vh":
-                    return value * document.documentElement.clientHeight / 100;
-                case "vmin":
-                case "vmax":
-                    var vw = document.documentElement.clientWidth / 100;
-                    var vh = document.documentElement.clientHeight / 100;
-                    var chooser = Math[units === "vmin" ? "min" : "max"];
-                    return value * chooser(vw, vh);
-                default:
-                    return value;
-                // for now, not supporting physical units (since they are just a set number of px)
-                // or ex/ch (getting accurate measurements is hard)
+            case 'px':
+                return value;
+            case 'em':
+                return value * getEmSize(element);
+            case 'rem':
+                return value * getEmSize();
+            // Viewport units!
+            // According to http://quirksmode.org/mobile/tableViewport.html
+            // documentElement.clientWidth/Height gets us the most reliable info
+            case 'vw':
+                return value * document.documentElement.clientWidth / 100;
+            case 'vh':
+                return value * document.documentElement.clientHeight / 100;
+            case 'vmin':
+            case 'vmax':
+                var vw = document.documentElement.clientWidth / 100;
+                var vh = document.documentElement.clientHeight / 100;
+                var chooser = Math[units === 'vmin' ? 'min' : 'max'];
+                return value * chooser(vw, vh);
+            default:
+                return value;
             }
         }
-
         /**
          *
          * @param {HTMLElement} element
@@ -75,53 +218,52 @@ define(['../bower_components/resize-sensor/src/ResizeSensor'], function(ResizeSe
             this.element = element;
             this.options = {};
             var key, option, width = 0, height = 0, value, actualValue, attrValues, attrValue, attrName;
-
             /**
              * @param {Object} option {mode: 'min|max', property: 'width|height', value: '123px'}
              */
-            this.addOption = function(option) {
-                var idx = [option.mode, option.property, option.value].join(',');
+            this.addOption = function (option) {
+                var idx = [
+                    option.mode,
+                    option.property,
+                    option.value
+                ].join(',');
                 this.options[idx] = option;
             };
-
-            var attributes = ['min-width', 'min-height', 'max-width', 'max-height'];
-
+            var attributes = [
+                'min-width',
+                'min-height',
+                'max-width',
+                'max-height'
+            ];
             /**
              * Extracts the computed width/height and sets to min/max- attribute.
              */
-            this.call = function() {
+            this.call = function () {
                 // extract current dimensions
                 width = this.element.offsetWidth;
                 height = this.element.offsetHeight;
-
                 attrValues = {};
-
                 for (key in this.options) {
-                    if (!this.options.hasOwnProperty(key)){
+                    if (!this.options.hasOwnProperty(key)) {
                         continue;
                     }
                     option = this.options[key];
-
                     value = convertToPx(this.element, option.value);
-
                     actualValue = option.property == 'width' ? width : height;
                     attrName = option.mode + '-' + option.property;
                     attrValue = '';
-
                     if (option.mode == 'min' && actualValue >= value) {
                         attrValue += option.value;
                     }
-
                     if (option.mode == 'max' && actualValue <= value) {
                         attrValue += option.value;
                     }
-
-                    if (!attrValues[attrName]) attrValues[attrName] = '';
-                    if (attrValue && -1 === (' '+attrValues[attrName]+' ').indexOf(' ' + attrValue + ' ')) {
+                    if (!attrValues[attrName])
+                        attrValues[attrName] = '';
+                    if (attrValue && -1 === (' ' + attrValues[attrName] + ' ').indexOf(' ' + attrValue + ' ')) {
                         attrValues[attrName] += ' ' + attrValue;
                     }
                 }
-
                 for (var k in attributes) {
                     if (attrValues[attributes[k]]) {
                         this.element.setAttribute(attributes[k], attrValues[attributes[k]].substr(1));
@@ -131,7 +273,6 @@ define(['../bower_components/resize-sensor/src/ResizeSensor'], function(ResizeSe
                 }
             };
         }
-
         /**
          * @param {HTMLElement} element
          * @param {Object}      options
@@ -142,17 +283,15 @@ define(['../bower_components/resize-sensor/src/ResizeSensor'], function(ResizeSe
             } else {
                 element.elementQueriesSetupInformation = new SetupInformation(element);
                 element.elementQueriesSetupInformation.addOption(options);
-                element.elementQueriesSensor = new ResizeSensor(element, function() {
+                element.elementQueriesSensor = new ResizeSensor(element, function () {
                     element.elementQueriesSetupInformation.call();
                 });
             }
             element.elementQueriesSetupInformation.call();
-
             if (this.withTracking) {
                 elements.push(element);
             }
         }
-
         /**
          * @param {String} selector
          * @param {String} mode min|max
@@ -161,14 +300,15 @@ define(['../bower_components/resize-sensor/src/ResizeSensor'], function(ResizeSe
          */
         function queueQuery(selector, mode, property, value) {
             var query;
-            if (document.querySelectorAll) query = document.querySelectorAll.bind(document);
-            if (!query && 'undefined' !== typeof $$) query = $$;
-            if (!query && 'undefined' !== typeof jQuery) query = jQuery;
-
+            if (document.querySelectorAll)
+                query = document.querySelectorAll.bind(document);
+            if (!query && 'undefined' !== typeof $$)
+                query = $$;
+            if (!query && 'undefined' !== typeof jQuery)
+                query = jQuery;
             if (!query) {
                 throw 'No document.querySelectorAll, jQuery or Mootools\'s $$ found.';
             }
-
             var elements = query(selector);
             for (var i = 0, j = elements.length; i < j; i++) {
                 setupElement(elements[i], {
@@ -178,9 +318,7 @@ define(['../bower_components/resize-sensor/src/ResizeSensor'], function(ResizeSe
                 });
             }
         }
-
-        var regex = /,?([^,\n]*)\[[\s\t]*(min|max)-(width|height)[\s\t]*[~$\^]?=[\s\t]*"([^"]*)"[\s\t]*]([^\n\s\{]*)/mgi;
-
+        var regex = /,?([^,\n]*)\[[\s\t]*(min|max)-(width|height)[\s\t]*[~$\^]?=[\s\t]*"([^"]*)"[\s\t]*]([^\n\s\{]*)/gim;
         /**
          * @param {String} css
          */
@@ -193,7 +331,6 @@ define(['../bower_components/resize-sensor/src/ResizeSensor'], function(ResizeSe
                 }
             }
         }
-
         /**
          * @param {CssRule[]|String} rules
          */
@@ -213,7 +350,7 @@ define(['../bower_components/resize-sensor/src/ResizeSensor'], function(ResizeSe
                         selector = rules[i].selectorText || rules[i].cssText;
                         if (-1 !== selector.indexOf('min-height') || -1 !== selector.indexOf('max-height')) {
                             extractQuery(selector);
-                        }else if(-1 !== selector.indexOf('min-width') || -1 !== selector.indexOf('max-width')) {
+                        } else if (-1 !== selector.indexOf('min-width') || -1 !== selector.indexOf('max-width')) {
                             extractQuery(selector);
                         }
                     } else if (4 === rules[i].type) {
@@ -222,60 +359,52 @@ define(['../bower_components/resize-sensor/src/ResizeSensor'], function(ResizeSe
                 }
             }
         }
-
         /**
          * Searches all css rules and setups the event listener to all elements with element query rules..
          *
          * @param {Boolean} withTracking allows and requires you to use detach, since we store internally all used elements
          *                               (no garbage collection possible if you don not call .detach() first)
          */
-        this.init = function(withTracking) {
+        this.init = function (withTracking) {
             this.withTracking = withTracking;
             for (var i = 0, j = document.styleSheets.length; i < j; i++) {
                 readRules(document.styleSheets[i].cssText || document.styleSheets[i].cssRules || document.styleSheets[i].rules);
             }
         };
-
         /**
          *
          * @param {Boolean} withTracking allows and requires you to use detach, since we store internally all used elements
          *                               (no garbage collection possible if you don not call .detach() first)
          */
-        this.update = function(withTracking) {
+        this.update = function (withTracking) {
             this.withTracking = withTracking;
             this.init();
         };
-
-        this.detach = function() {
+        this.detach = function () {
             if (!this.withTracking) {
-                throw 'withTracking is not enabled. We can not detach elements since we don not store it.' +
-                'Use ElementQueries.withTracking = true; before domready.';
+                throw 'withTracking is not enabled. We can not detach elements since we don not store it.' + 'Use ElementQueries.withTracking = true; before domready.';
             }
-
             var element;
             while (element = elements.pop()) {
                 ElementQueries.detach(element);
             }
-
             elements = [];
         };
     };
-
     /**
      *
      * @param {Boolean} withTracking allows and requires you to use detach, since we store internally all used elements
      *                               (no garbage collection possible if you don not call .detach() first)
      */
-    ElementQueries.update = function(withTracking) {
+    ElementQueries.update = function (withTracking) {
         ElementQueries.instance.update(withTracking);
     };
-
     /**
      * Removes all sensor and elementquery information from the element.
      *
      * @param {HTMLElement} element
      */
-    ElementQueries.detach = function(element) {
+    ElementQueries.detach = function (element) {
         if (element.elementQueriesSetupInformation) {
             element.elementQueriesSensor.detach();
             delete element.elementQueriesSetupInformation;
@@ -285,17 +414,13 @@ define(['../bower_components/resize-sensor/src/ResizeSensor'], function(ResizeSe
             console.log('detached already', element);
         }
     };
-
     ElementQueries.withTracking = false;
-
-    ElementQueries.init = function() {
+    ElementQueries.init = function () {
         if (!ElementQueries.instance) {
             ElementQueries.instance = new ElementQueries();
         }
-
         ElementQueries.instance.init(ElementQueries.withTracking);
     };
-
     var domLoaded = function (callback) {
         /* Internet Explorer */
         /*@cc_on
@@ -323,14 +448,15 @@ define(['../bower_components/resize-sensor/src/ResizeSensor'], function(ResizeSe
         /* Other web browsers */
         window.onload = callback;
     };
-
     if (window.addEventListener) {
         window.addEventListener('load', ElementQueries.init, false);
     } else {
         window.attachEvent('onload', ElementQueries.init);
     }
     domLoaded(ElementQueries.init);
-
     return ElementQueries;
+}(bowerComponentsResizeSensorSrcResizeSensor);
 
-});
+return ElementQueries;
+
+}));
